@@ -8,4 +8,5 @@ RUN npm config set unsafe-perm true
 # Install dependencies
 RUN npm install -g hexo-cli
 RUN npm install 
+RUN hexo generate
 CMD ["hexo", "server"]
