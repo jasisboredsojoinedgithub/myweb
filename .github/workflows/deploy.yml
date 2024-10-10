@@ -42,16 +42,16 @@ jobs:
         chmod 400 /tmp/deploy_key.pem
 
         # Temporarily change ownership to ec2-user for deployment
-        ssh -i /tmp/deploy_key.pem ${USER}@${HOST} << 'EOF'
+        ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem ${USER}@${HOST} << 'EOF'
           sudo chown -R ec2-user:ec2-user /web/hexo
           exit
         EOF
 
         # Upload generated files to EC2 instance using SCP
-        scp -i /tmp/deploy_key.pem -r public/* ${USER}@${HOST}:/web/hexo/
+        scp -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem -r public/* ${USER}@${HOST}:/web/hexo/
 
         # Revert ownership to nginx and restart Nginx
-        ssh -i /tmp/deploy_key.pem ${USER}@${HOST} << 'EOF'
+        ssh -o StrictHostKeyChecking=no -i /tmp/deploy_key.pem ${USER}@${HOST} << 'EOF'
           sudo chown -R nginx:nginx /web/hexo
           sudo chmod -R 755 /web/hexo
           sudo systemctl restart nginx
