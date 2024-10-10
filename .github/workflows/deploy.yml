@@ -1,0 +1,61 @@
+name: Deploy Hexo Site to EC2
+
+on:
+  push:
+    branches:
+      - main  # Triggers deployment on pushes to the main branch
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code with submodules
+      uses: actions/checkout@v3
+      with:
+        submodules: true  # Ensures Git submodules are initialized and updated. 
+                          # You can remove this step if there's no submodule in your repo
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '20'  # Use a compatible Node.js version for Hexo, usually 16 or 18
+
+    - name: Install Hexo and dependencies
+      run: |
+        npm install -g hexo-cli
+        npm install
+
+    - name: Generate Hexo static files
+      run: |
+        hexo clean
+        hexo generate
+
+    - name: Deploy to EC2
+      env:
+        HOST: ${{ secrets.AWS_EC2_HOST }}
+        USER: ${{ secrets.AWS_EC2_USER }}
+      run: |
+
+        # Create a temporary SSH key file for access
+        echo "${{ secrets.AWS_PEM_KEY }}" > /tmp/deploy_key.pem
+        chmod 400 /tmp/deploy_key.pem
+
+        # Temporarily change ownership to ec2-user for deployment
+        ssh -i /tmp/deploy_key.pem ${USER}@${HOST} << 'EOF'
+          sudo chown -R ec2-user:ec2-user /web/hexo
+          exit
+        EOF
+
+        # Upload generated files to EC2 instance using SCP
+        scp -i /tmp/deploy_key.pem -r public/* ${USER}@${HOST}:/web/hexo/
+
+        # Revert ownership to nginx and restart Nginx
+        ssh -i /tmp/deploy_key.pem ${USER}@${HOST} << 'EOF'
+          sudo chown -R nginx:nginx /web/hexo
+          sudo chmod -R 755 /web/hexo
+          sudo systemctl restart nginx
+        EOF
+
+    - name: Cleanup
+      run: rm -f /tmp/deploy_key.pem  # Clean up temporary SSH key
